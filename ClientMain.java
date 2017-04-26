@@ -15,8 +15,8 @@ public class ClientMain extends Application {
 	
 	@Override
 	public void start(Stage primaryStage) throws Exception {
-		Stage clientStage = primaryStage;
-		Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
+		clientStage = primaryStage;
+		screenBounds = Screen.getPrimary().getVisualBounds();
 		readControllerFXML();
 		(new Client()).start();
 

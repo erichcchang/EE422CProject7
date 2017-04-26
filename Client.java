@@ -26,6 +26,7 @@ public class Client {
 	void start() {
 		try {
 			client = new Socket("localhost", portNum);
+			
 		} catch (UnknownHostException e) {
 			System.out.println("Unknown Host");
 			return;

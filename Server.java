@@ -26,6 +26,31 @@ public class Server {
 	@FXML
 	Button sendButton;
 	
+	class ClientHandler implements Runnable {
+		
+		Socket client;
+		
+		ClientHandler(Socket request) {
+			client = request;
+		}
+		
+		@Override
+		public void run() {
+			try {
+				DataInputStream in = new DataInputStream(client.getInputStream());
+				DataOutputStream out = new DataOutputStream(client.getOutputStream());
+				while (true) {
+					
+				}
+			} catch (IOException e) {
+				System.out.println("Socket Unavailable");
+				return;
+			}
+			
+		}		
+		
+	}
+	
 	void start() {
 		try {
 			server = new ServerSocket(portNum);
@@ -34,32 +59,13 @@ public class Server {
 			return;
 		}
 		while (true) {
-			Socket request;
 			try {
-				request = server.accept();
+				Socket client = server.accept();
+				Thread thread = new Thread(new ClientHandler(client));
 			} catch (IOException e) {
 				System.out.println("Cannot accept client");
 				return;
 			}
-			Thread thread = new Thread(new Runnable() {
-				
-					@Override
-					public void run() {
-						try {
-							DataInputStream in = new DataInputStream(request.getInputStream());
-							DataOutputStream out = new DataOutputStream(request.getOutputStream());
-							while (true) {
-								
-							}
-							
-						} catch (IOException e) {
-							System.out.println("Socket Unavailable");
-							return;
-						}		
-					}
-					
-				});
-			thread.start();
 			
 		}
 		// observables
