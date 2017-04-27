@@ -1,75 +1,93 @@
 package assignment7;
 
-import javafx.fxml.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.TextArea;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Observable;
+import java.util.Observer;
+import java.util.Scanner;
+
+import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TextArea;
 
 
-public class Server {
+public class Server extends Observable implements Observer {
 	
-	int portNum = 5000;
-	ServerSocket server;
-	Socket[] clients;
+	Controller control;
+	int portNum;
 	
-	@FXML
-	TextArea chatLog;
+	private int roomID;
+	private int clientID;
+	private List<ChatRoom> chatRooms;
+	private List<ChatRoom> conversations;
+	private List<ClientHandler> clients;
+	private Map<String, Integer> usernames;
+	private Map<String, Integer> chatroomNames;
+	private ServerSocket server;
 	
-	@FXML
-	TextArea textPrompt;
-	
-	@FXML
-	Button sendButton;
-	
-	class ClientHandler implements Runnable {
-		
-		Socket client;
-		
-		ClientHandler(Socket request) {
-			client = request;
-		}
-		
-		@Override
-		public void run() {
-			try {
-				DataInputStream in = new DataInputStream(client.getInputStream());
-				DataOutputStream out = new DataOutputStream(client.getOutputStream());
-				while (true) {
-					
-				}
-			} catch (IOException e) {
-				System.out.println("Socket Unavailable");
-				return;
-			}
-			
-		}		
-		
+	Server(Controller control, int portNum) {
+		this.control = control;
+		this.portNum = portNum;
+		roomID = 0;
+		clientID = 0;
+		chatRooms = new ArrayList<ChatRoom>();
+		clients = new ArrayList<ClientHandler>();
 	}
 	
-	void start() {
+	public void run() {
+		control.serverText.appendText("Initializing...\n");
 		try {
 			server = new ServerSocket(portNum);
 		} catch (IOException e) {
-			System.out.println("Port " + portNum + " already bound");
+			control.serverText.appendText("Failed: Port " + portNum + " already bound\n");
 			return;
 		}
+		control.serverText.appendText("Initialized!\n");
 		while (true) {
 			try {
 				Socket client = server.accept();
-				Thread thread = new Thread(new ClientHandler(client));
+				ClientHandler clientHandler = new ClientHandler(client, this);
+				Platform.runLater(new Runnable() {                          
+		            @Override
+		            public void run() {
+		            	control.serverText.appendText("Client " + clientID + " has connected\n");
+		            }
+		        });
+				clients.add(clientHandler);
+				clientID++;	
+				addObserver(clientHandler);
+				(new Thread(clientHandler)).start();
+				//System.out.println("new client has connected in chat room " + roomID);
+				//ChatRoom serverRoom = new ChatRoom(client, roomID, this);
+				//rooms.add(serverRoom);
+				//this.addObserver(serverRoom);
+				//Thread thread = new Thread(serverRoom);
+				//thread.start();
 			} catch (IOException e) {
-				System.out.println("Cannot accept client");
-				return;
-			}
-			
+				Platform.runLater(new Runnable() {                          
+	                @Override
+	                public void run() {
+	                	control.serverText.appendText("Unable to establish connection with client\n");
+	                }
+	            });
+			}		
 		}
-		// observables
 	}
-	
+
+	@Override
+	public void update(Observable o, Object arg) {
+		//String clientMessage = "Client " + ((ChatRoom)o).getID() + ": " + (String)arg;
+		//System.out.println(clientMessage);
+		//notifyObservers(clientMessage);
+	}
 
 }
