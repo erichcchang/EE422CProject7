@@ -5,21 +5,27 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.Observable;
-import java.util.Observer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 import javafx.application.Platform;
 
-public class ClientHandler extends Observable implements Runnable, Observer  {
+public class ClientHandler implements Runnable {
 	
+	Socket clientSocket;
 	private Server server;
 	public BufferedReader in;
 	public PrintWriter out;
 	final public int ID;
 	public String username;
+	public List<Chatroom> clientRooms;
+	private static Random RNG = new Random();
 	
 	ClientHandler(Socket client, Server server) {
+		clientSocket = client;
 		this.server = server;
+		clientRooms = new ArrayList<Chatroom>();
 		try {
 			in = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			out = new PrintWriter(client.getOutputStream());
@@ -29,8 +35,11 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 		out.println("PRINTOUT" + "Connected!");
 		out.println("PRINTOUT" + "Welcome to the messaging server!");
 		ID = server.clientID;
-		username = Integer.toString(ID);
-		server.fetchClientID.put(username, ID);
+		char[] charArray = new char[4];
+		for (int i = 0; i < charArray.length; i++) {
+			charArray[i] = (char) (RNG.nextInt(26000) % 26 + 97);
+		}
+		username = new String(charArray);
 		out.println("CHANGEUN" + username);
 		printAvailable();
 		out.println("PRINTOUT" + "Enter \"help\" for a list of commands");
@@ -40,6 +49,7 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 	private void changeUsername(String newUsername) {
 		if (server.fetchClientID.containsKey(newUsername) && server.fetchClientID.get(newUsername) != ID) {
 			out.println("PRINTOUT" + "Failed: username\"" + newUsername + "\" is taken");
+			out.flush();
 			Platform.runLater(new Runnable() {                          
                 @Override
                 public void run() {
@@ -51,7 +61,11 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 			server.fetchClientID.remove(username);
 			server.fetchClientID.put(newUsername, ID);
 			username = newUsername;
+			for (Chatroom clientRoom: clientRooms) { // observer/able candidate
+				clientRoom.refreshAll();
+			}
 			out.println("CHANGEUN" + username);
+			out.flush();
 			Platform.runLater(new Runnable() {                          
                 @Override
                 public void run() {
@@ -63,33 +77,108 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 	
 	private void printAvailable() {
 		out.println("PRINTOUT" + "People Online");
-		if (server.clients.isEmpty()) {
+		int count = 0;
+		for (ClientHandler client: server.clients) {
+			if (client != this) {
+				out.println("PRINTOUT	" + client.username);
+				count++;
+			}
+		}
+		if (count == 0) {
 			out.println("PRINTOUT	no one is online");
 		}
-		else {
-			for (ClientHandler client: server.clients) {
-				if (client != this) {
-					out.println("PRINTOUT	" + client.username);
-				}
-				else {
-					if (server.clients.size() == 1) {
-						out.println("PRINTOUT	no one is online");
-					}
-				}
+		out.println("PRINTOUT" + "Chatrooms");
+		count = 0;
+		for (Chatroom room: server.chatrooms) {
+			if (!room.isPrivate) {
+				out.println("PRINTOUT	" + room.name + " (" + room.numClients + ")");
+				count++;
 			}
 		}
-		out.println("PRINTOUT" + "Chatrooms");
-		if (server.chatrooms.isEmpty()) {
+		if (count == 0) {
 			out.println("PRINTOUT" + "	no chat rooms are available");
 		}
-		else {
-			for (Chatroom room: server.chatrooms) {
-				if (!room.isPrivate) {
-					out.println("PRINTOUT	" + room.name + "(" + room.numClients + ")");
-				}
+		out.flush();
+	}
+	
+	private void enter(String name) {
+		if (server.fetchChatroomID.containsKey(name)) {
+			Chatroom chatroom = server.chatrooms.get(server.fetchChatroomID.get(name));
+			if (chatroom.isPrivate) {
+				out.println("PRINTOUT" + "No chatroom named \"" + name + "\"");
+				out.flush();
+			}
+			else {
+				chatroom.addClient(this);
+				chatroom.sendMessage(username + " has entered the chatroom");
+				Platform.runLater(new Runnable() {                          
+	                @Override
+	                public void run() {
+	                	server.control.serverText.appendText("Client " + ID + " has entered chatroom " + chatroom.ID);	
+	                }
+	            });
 			}
 		}
+		else {
+			out.println("PRINTOUT" + "No chatroom named \"" + name + "\"");
+			out.flush();
+		}
 	}
+	
+	private void connectTo(String user) {
+		if (server.fetchClientID.containsKey(user)) {
+			int connectID = server.fetchClientID.get(user);
+			if (connectID != ID) {
+				Chatroom chatroom = new Chatroom(this, true, Integer.toString(server.roomID), server);
+				ClientHandler other = server.clients.get(connectID);
+				chatroom.addClient(other);
+				clientRooms.add(chatroom);
+				server.fetchChatroomID.put(chatroom.name, chatroom.ID);
+				server.chatrooms.add(chatroom);
+				server.roomID++;
+				Platform.runLater(new Runnable() {                          
+	                @Override
+	                public void run() {
+	                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created\n");	
+	                }
+	            });	
+				chatroom.sendMessage(username + " has connected");
+				chatroom.sendMessage(other.username + " has connected");
+				out.flush();
+			}
+			else {
+				out.println("PRINTOUT" + "Cannot connect to yourself");
+				out.flush();
+			}
+		}
+		else {
+			out.println("PRINTOUT" + "\"" + user + "\": no such user");
+			out.flush();
+		}
+	}
+	
+	private void createChatroom(String name) {
+		if (server.fetchChatroomID.containsKey(name)) {
+			out.println("PRINTOUT" + "Failed: chatroom name \"" + name + "\" is taken");
+			out.flush();
+		}
+		else {
+			Chatroom chatroom = new Chatroom(this, false, name, server);
+			clientRooms.add(chatroom);
+			server.fetchChatroomID.put(chatroom.name, chatroom.ID);
+			server.chatrooms.add(chatroom);
+			chatroom.refreshAll();
+			server.roomID++;
+			Platform.runLater(new Runnable() {                          
+                @Override
+                public void run() {
+                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created\n");	
+                }
+            });
+			chatroom.sendMessage(username + " has connected to the chatroom");
+		}
+	}
+	
 	private void printCommands() {
 		out.println("PRINTOUT	Change your username - \"username MyUsername\"");
 		out.println("PRINTOUT	Obtain an updated list of chatrooms and users - \"update\"");
@@ -97,6 +186,7 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 		out.println("PRINTOUT	Connect to an existing chatroom - \"enter ChatroomName\"");
 		out.println("PRINTOUT	Chat with an existing - \"connect Username\"");
 		out.println("PRINTOUT	View list of commands again - \"help\"");
+		out.flush();
 	}
 	
 	@Override
@@ -106,7 +196,7 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 				String line = in.readLine();
 				if (line.startsWith("SERVECMD")) {
 					String args[] = line.substring(8).split("\\s+");
-					/* commands are:
+					/* receive commands are:
 			         * username MyUsername
 			         * update
 			         * chatroom ChatroomName
@@ -114,68 +204,54 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 			         * connect UserName
 			         * help             
 			         */
+					/* send commands are:
+					 * PRINTOUT - print out texts to client's serverText
+					 * CHANGEUN - change username
+		             * MAKERM## - make chat room with assigned ID ##
+		             * MAKECT## - start chat with client assigned ID ##
+		             * CHATRM## - send message from chatroom with ID ## 
+		             */
 					if (args[0].equals("username")) {
 						if(args.length == 1) {
 							out.println("CHANGEUN");
+							out.flush();
 						}
 						else {
 							changeUsername(args[1]);
 						}
-						out.flush();
 					}
 					else if (args[0].equals("update")) {
 						printAvailable();
-						out.flush();
 					}
 					else if (args[0].equals("chatroom")) {
-						// cont
-						out.flush();
-					}
-					else if (args[0].equals("enter")) {
-						// cont
-						out.flush();
-					}
-					else if (args[0].equals("connect")) {
-						if(args.length == 1) {
-							out.println("PRINTOUT" + "Specify a username after \"connect\"");
+						if (args.length == 1) {
+							out.println("PRINTOUT" + "Specify a chatroom name with \"chatroom\"");
+							out.flush();
 						}
 						else {
-							if (server.fetchClientID.containsKey(args[1])) {
-								int connectID = server.fetchClientID.get(args[1]);
-								if (connectID != ID) {
-									Chatroom chatroom = new Chatroom(this, true, server);
-									ClientHandler other = server.clients.get(connectID);
-									chatroom.addClient(other);
-									server.chatrooms.add(chatroom);
-									addObserver(chatroom);
-									Platform.runLater(new Runnable() {                          
-						                @Override
-						                public void run() {
-						                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created\n");	
-						                }
-						            });	
-									if (chatroom.ID < 10) {
-										out.println("MAKERM" + "0" + chatroom.ID);
-										other.out.println("MAKERM" + "0" + chatroom.ID);
-									}
-									else {
-										out.println("MAKERM" + chatroom.ID);
-										other.out.println("MAKERM" + chatroom.ID);
-									}
-								}
-								else {
-									out.println("PRINTOUT" + "Cannot connect to yourself");
-								}
-							}
-							else {
-								out.println("PRINTOUT" + "\"" + args[1] + "\": no such user");
-							}
+							createChatroom(args[1]);
 						}
-						out.flush();
+					}
+					else if (args[0].equals("enter")) {
+						if (args.length == 1) {
+							out.println("PRINTOUT" + "Specify a chatroom with \"enter\"");
+							out.flush();
+						}
+						else {
+							enter(args[1]);
+						}
+					}
+					else if (args[0].equals("connect")) {
+						if (args.length == 1) {
+							out.println("PRINTOUT" + "Specify a username with \"connect\"");
+							out.flush();
+						}
+						else {
+							connectTo(args[1]);
+						}
 					}
 					else if (args[0].equals("help")) {
 						printCommands();
-						out.flush();
 					}
 					else {
 						out.println("PRINTOUT" + args[0] + ": invalid command");
@@ -184,12 +260,8 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 					
 				}
 				else if (line.startsWith("SMSGRM")) {
-					
-					out.flush();
-				}
-				else if (line.startsWith("SMSGCL")) {
-					
-					out.flush();
+					int roomID = Integer.parseInt(line.substring(6, 8));
+					server.chatrooms.get(roomID).sendMessage(this.username + ": " + line.substring(8));
 				}
 				else {
 					throw new IOException();
@@ -198,18 +270,12 @@ public class ClientHandler extends Observable implements Runnable, Observer  {
 				Platform.runLater(new Runnable() {                          
 	                @Override
 	                public void run() {
-	                	server.control.serverText.appendText("Failed: Client message or request could not be received\n");	
+	                	server.control.serverText.appendText("Client " + ID + " has disconnected\n");
 	                }
 	            });
+				return;
 			}
 		}
 	}
 
-	@Override
-	public void update(Observable o, Object arg) {
-		if (this != o) {
-			out.println(arg);
-			out.flush();
-		}		
-	}
 }

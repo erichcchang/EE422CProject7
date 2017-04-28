@@ -22,7 +22,7 @@ public class ServerMain extends Application {
 		serverStage.setY(screenBounds.getMinY() + 50);
 		serverStage.setTitle("Server");
 		serverStage.show();
-		Server server = new Server(control, 6000);
+		Server server = new Server(control, 5000);
 		(new Service<Void>() {
 	        @Override
 	        public Task<Void> createTask() {

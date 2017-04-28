@@ -6,6 +6,10 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Observable;
 import java.util.Observer;
 
@@ -19,19 +23,24 @@ public class Client extends Observable implements Observer {
 	Controller control;
 	int portNum;
 	
-	private String username;
-	private BufferedReader in;
-	private PrintWriter out;
+	private String host;
+	public String username;
+	public BufferedReader in;
+	public PrintWriter out;
+	public Map<Integer, ClientRoom> fetchRoom;
 	
-	Client(Controller control, int portNum) {
+	Client(Controller control, String host, int portNum) {
 		this.control = control;
+		this.host = host;
 		this.portNum = portNum;
+		fetchRoom = new HashMap<Integer, ClientRoom>();
 	}
 	
 	public void run() {
-		try {
+		try {		
 			control.serverText.appendText("Connecting to server ...\n");
-			Socket client = new Socket("localhost", portNum);
+			@SuppressWarnings("resource")
+			Socket client = new Socket(host, portNum);
 			in = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			out = new PrintWriter(client.getOutputStream());
 			control.commandLine.setOnKeyPressed(new EventHandler<KeyEvent>() {
@@ -56,9 +65,11 @@ public class Client extends Observable implements Observer {
 			});
 		} catch (UnknownHostException e) {
 			control.serverText.appendText("Failed: Unknown Host\n");
+			control.serverText.appendText("Enter host to connect to:\n");
 			return;
 		} catch (IOException e) {
 			control.serverText.appendText("Failed: Port Unavailable\n");
+			control.serverText.appendText("Enter host to connect to:\n");
 			return;
 		}	
 		while (true) {
@@ -68,9 +79,7 @@ public class Client extends Observable implements Observer {
 				 * PRINTOUT - print text to serverText
 				 * CHANGEUN - change username
 	             * MAKERM## - make chat room with assigned ID ##
-	             * MAKECT## - start chat with client assigned ID ##
-	             * CHATRM## - receive message from chat room with ID ## 
-	             * CLIENT## - receive message from client ##
+	             * CHATRM## - receive message from chatroom with ID ## 
 	             */
 				if (line.startsWith("PRINTOUT")) {
 					Platform.runLater(new Runnable() {                          
@@ -100,25 +109,33 @@ public class Client extends Observable implements Observer {
 					}
 				}
 				else if (line.startsWith("MAKERM")) {
-					int ID = Integer.parseInt(line.substring(6, 8));
-					// cont
+					String args[] = line.substring(6).split("\\s");
+					int chatroomID = Integer.parseInt(args[0].substring(0, 2));
+					int isPrivate = Integer.parseInt(args[0].substring(2));
+					int numClients = Integer.parseInt(args[1]);
+					String name = args[2];
+					List<String> usernames = new ArrayList<String>();
+					for (int i = 3; i < args.length; i++) {
+						usernames.add(args[i]);
+					}
+					if (fetchRoom.containsKey(chatroomID)) {
+						ClientRoom clientRoom = fetchRoom.get(chatroomID);
+						clientRoom.set(numClients, usernames, this);
+					}
+					else {
+						ClientRoom clientRoom = new ClientRoom(chatroomID, isPrivate, numClients, name, usernames, this);
+						fetchRoom.put(chatroomID, clientRoom);
+					}				
 				}
-				/*
-				else if (line.startsWith("MAKECT")) {
-					int ID = Integer.parseInt(line.substring(6, 8));
-					// cont
-				}
-				*/
             	else if (line.startsWith("CHATRM")) {
             		int ID = Integer.parseInt(line.substring(6, 8));
-            		// cont
+            		Platform.runLater(new Runnable() {                          
+    	                @Override
+    	                public void run() {
+    	                	fetchRoom.get(ID).chatLog.appendText(line.substring(8) + "\n");
+    	                }
+    	            });
             	}
-				/*
-            	else if (line.startsWith("CLIENT")) {
-            		int ID = Integer.parseInt(line.substring(6, 8));
-            		// cont
-            	}
-            	*/
             	else {
             		throw new IOException();
             	}

@@ -7,12 +7,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Observable;
-import java.util.Observer;
 
 import javafx.application.Platform;
 
-public class Server extends Observable implements Observer {
+public class Server {
 	
 	public Controller control;
 	private int portNum;
@@ -47,13 +45,13 @@ public class Server extends Observable implements Observer {
 		control.serverText.appendText("Initialized!\n");
 		while (true) {
 			try {
-				Socket client = server.accept();
-				ClientHandler clientHandler = new ClientHandler(client, this);
+				Socket clientSocket = server.accept();
+				ClientHandler client = new ClientHandler(clientSocket, this);
 				control.serverText.appendText("Client " + clientID + " has connected\n");
-				clientID++;
-				clients.add(clientHandler);	
-				addObserver(clientHandler);
-				(new Thread(clientHandler)).start();
+				clients.add(client);	
+				fetchClientID.put(client.username, client.ID);
+				clientID++;				
+				(new Thread(client)).start();
 				//System.out.println("new client has connected in chat room " + roomID);
 				//ChatRoom serverRoom = new ChatRoom(client, roomID, this);
 				//rooms.add(serverRoom);
@@ -69,13 +67,6 @@ public class Server extends Observable implements Observer {
 	            });
 			}		
 		}
-	}
-
-	@Override
-	public void update(Observable o, Object arg) {
-		//String clientMessage = "Client " + ((ChatRoom)o).getID() + ": " + (String)arg;
-		//System.out.println(clientMessage);
-		//notifyObservers(clientMessage);
 	}
 
 }
