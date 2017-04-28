@@ -1,36 +1,34 @@
 package assignment7;
 
-import java.io.PrintWriter;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.Scanner;
 
-public class ChatRoom extends Observable implements Runnable, Observer {
+public class Chatroom extends Observable implements Observer {
 	
+	public boolean isPrivate;
+	public int numClients;
+	final public int ID;
+	public String name;
 	private List<ClientHandler> clients;
-	private Scanner in;
-	private PrintWriter out;
 	
-	ChatRoom(ClientHandler clientHandler, Server server) {
+	Chatroom(ClientHandler clientHandler, boolean isPrivate, Server server) {
 		clients.add(clientHandler);
-		this.addObserver(server);
+		this.isPrivate = isPrivate;
+		numClients = 1;
+		ID = server.roomID;
+		name = Integer.toString(ID);
+		server.roomID++;
 	}
 	
-	@Override
-	public void run() {
-		while (true) {
-			if(in.hasNextLine()) {
-				this.notifyObservers(in.nextLine());
-			}
-		}
+	void addClient(ClientHandler clientHandler) {
+		clientHandler.addObserver(this);
+		clients.add(clientHandler);
+		numClients++;
 	}
-
+	
 	@Override
 	public void update(Observable o, Object arg) {
-		if (this != o) {
-			out.println(arg);
-			out.flush();
-		}		
+		
 	}
 }

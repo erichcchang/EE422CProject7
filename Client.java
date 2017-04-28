@@ -19,6 +19,7 @@ public class Client extends Observable implements Observer {
 	Controller control;
 	int portNum;
 	
+	private String username;
 	private BufferedReader in;
 	private PrintWriter out;
 	
@@ -80,25 +81,44 @@ public class Client extends Observable implements Observer {
 		            });
 				}
 				else if (line.startsWith("CHANGEUN")) {
-					int ID = Integer.parseInt(line.substring(6, 8));
-					// cont
+					if (line.equals("CHANGEUN")) {
+						Platform.runLater(new Runnable() {                          
+			                @Override
+			                public void run() {
+			                	control.serverText.appendText("Your username is \"" + username + "\"\n");
+			                }
+			            });
+					}
+					else {
+						username = line.substring(8);
+						Platform.runLater(new Runnable() {                          
+			                @Override
+			                public void run() {
+			                	control.serverText.appendText("Your username has been changed to \"" + username + "\"\n");
+			                }
+			            });
+					}
 				}
 				else if (line.startsWith("MAKERM")) {
 					int ID = Integer.parseInt(line.substring(6, 8));
 					// cont
 				}
+				/*
 				else if (line.startsWith("MAKECT")) {
 					int ID = Integer.parseInt(line.substring(6, 8));
 					// cont
 				}
+				*/
             	else if (line.startsWith("CHATRM")) {
             		int ID = Integer.parseInt(line.substring(6, 8));
             		// cont
             	}
+				/*
             	else if (line.startsWith("CLIENT")) {
             		int ID = Integer.parseInt(line.substring(6, 8));
             		// cont
             	}
+            	*/
             	else {
             		throw new IOException();
             	}
