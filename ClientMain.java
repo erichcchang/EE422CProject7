@@ -9,6 +9,7 @@
 package assignment7;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 import javafx.event.EventHandler;
@@ -16,6 +17,7 @@ import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 public class ClientMain extends Application {
 
@@ -48,6 +50,13 @@ public class ClientMain extends Application {
 		            
 		        }
 		    }
+		});
+		clientStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent t) {
+                Platform.exit();
+                System.exit(0);
+            }
 		});
 	}
 	
