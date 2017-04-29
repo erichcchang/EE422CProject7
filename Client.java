@@ -10,15 +10,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Observable;
-import java.util.Observer;
 
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 
-public class Client extends Observable implements Observer {
+public class Client {
 	
 	Controller control;
 	int portNum;
@@ -148,12 +146,6 @@ public class Client extends Observable implements Observer {
 	            });
 			}
 		}
-	}
-
-	@Override
-	public void update(Observable o, Object arg) {
-		// TODO Auto-generated method stub
-		
 	}
 	
 }

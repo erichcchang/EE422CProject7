@@ -2,6 +2,8 @@ package assignment7;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -11,7 +13,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 
-public class Chatroom {
+public class Chatroom extends Observable implements Observer {
 	
 	public boolean isPrivate;
 	public int numClients;
@@ -26,6 +28,7 @@ public class Chatroom {
 	Chatroom(ClientHandler clientHandler, boolean isPrivate, String name, Server server) {
 		clients = new ArrayList<ClientHandler>();
 		clients.add(clientHandler);
+		addObserver(clientHandler);
 		this.isPrivate = isPrivate;
 		numClients = 1;
 		ID = server.roomID;
@@ -44,15 +47,9 @@ public class Chatroom {
 	
 	public void addClient(ClientHandler clientHandler) {
 		clients.add(clientHandler);
+		addObserver(clientHandler);
 		numClients++;
 		refreshAll();
-		Platform.runLater(new Runnable() {                          
-            @Override
-            public void run() {
-            	tab.setText(name + " (" + numClients + ")");
-            	info.setText(info.getText() + ", " + clientHandler.username);
-            }
-        });
 	}
 	
 	private void refresh(ClientHandler clientHandler) {
@@ -62,6 +59,27 @@ public class Chatroom {
 		String privateChar = isPrivate ? "1 " : "0 ";
 		for (ClientHandler client: clients) {
 			clientsList = clientsList + " " + client.username;
+		}
+		if (isPrivate) {
+			Platform.runLater(new Runnable() {                          
+	            @Override
+	            public void run() {
+	            	info.setText(clients.get(0).username + ", " + clients.get(1).username);
+	            }
+	        });
+		}
+		else {
+			Platform.runLater(new Runnable() {                          
+	            @Override
+	            public void run() {
+	            	String subTitle = clients.get(0).username;
+	            	for (int i = 1; i < clients.size(); i++) {
+	            		subTitle = subTitle + ", " + clients.get(i).username;
+	            	}
+	            	tab.setText(name + " (" + numClients + ")");
+	            	info.setText(subTitle);
+	            }
+	        });
 		}
 		if (ID < 10) {
 			clientHandler.out.println("MAKERM"  + roomNum + privateChar + numClients + " " + name + clientsList);
@@ -81,10 +99,14 @@ public class Chatroom {
         });
 		String roomNum = ID < 10 ? "0" : "";
 		roomNum += ID;
+		setChanged();
+		notifyObservers("CHATRM" + roomNum + message);
+		/*
 		for (ClientHandler client: clients) {
 			client.out.println("CHATRM" + roomNum + message);
 			client.out.flush();
 		}
+		*/
 	}
 	
 	public void refreshAll() { // observer/able candidate
@@ -107,6 +129,11 @@ public class Chatroom {
 		BorderPane.setAlignment(info, Pos.CENTER);
 		centerBorder.setCenter(chatLog);
 		chatLog.setEditable(false);
+	}
+
+	@Override
+	public void update(Observable o, Object arg) {
+		refreshAll();
 	}
 	
 }

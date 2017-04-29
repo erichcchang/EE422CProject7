@@ -7,11 +7,13 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.Random;
 
 import javafx.application.Platform;
 
-public class ClientHandler implements Runnable {
+public class ClientHandler extends Observable implements Runnable, Observer {
 	
 	Socket clientSocket;
 	private Server server;
@@ -39,6 +41,7 @@ public class ClientHandler implements Runnable {
 		for (int i = 0; i < charArray.length; i++) {
 			charArray[i] = (char) (RNG.nextInt(26000) % 26 + 97);
 		}
+		// may be taken
 		username = new String(charArray);
 		out.println("CHANGEUN" + username);
 		printAvailable();
@@ -61,11 +64,12 @@ public class ClientHandler implements Runnable {
 			server.fetchClientID.remove(username);
 			server.fetchClientID.put(newUsername, ID);
 			username = newUsername;
-			for (Chatroom clientRoom: clientRooms) { // observer/able candidate
-				clientRoom.refreshAll();
+			synchronized (this) {
+				out.println("CHANGEUN" + username);
+				out.flush();
+				setChanged();
+				notifyObservers();
 			}
-			out.println("CHANGEUN" + username);
-			out.flush();
 			Platform.runLater(new Runnable() {                          
                 @Override
                 public void run() {
@@ -110,11 +114,12 @@ public class ClientHandler implements Runnable {
 			}
 			else {
 				chatroom.addClient(this);
+				addObserver(chatroom);
 				chatroom.sendMessage(username + " has entered the chatroom");
 				Platform.runLater(new Runnable() {                          
 	                @Override
 	                public void run() {
-	                	server.control.serverText.appendText("Client " + ID + " has entered chatroom " + chatroom.ID);	
+	                	server.control.serverText.appendText("Client " + ID + " has entered chatroom " + chatroom.ID + "\n");	
 	                }
 	            });
 			}
@@ -133,13 +138,14 @@ public class ClientHandler implements Runnable {
 				ClientHandler other = server.clients.get(connectID);
 				chatroom.addClient(other);
 				clientRooms.add(chatroom);
+				addObserver(chatroom);
 				server.fetchChatroomID.put(chatroom.name, chatroom.ID);
 				server.chatrooms.add(chatroom);
 				server.roomID++;
 				Platform.runLater(new Runnable() {                          
 	                @Override
 	                public void run() {
-	                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created\n");	
+	                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created privately between " + "Clients " + ID + " and " + other.ID + "\n");
 	                }
 	            });	
 				chatroom.sendMessage(username + " has connected");
@@ -165,6 +171,7 @@ public class ClientHandler implements Runnable {
 		else {
 			Chatroom chatroom = new Chatroom(this, false, name, server);
 			clientRooms.add(chatroom);
+			addObserver(chatroom);
 			server.fetchChatroomID.put(chatroom.name, chatroom.ID);
 			server.chatrooms.add(chatroom);
 			chatroom.refreshAll();
@@ -172,7 +179,8 @@ public class ClientHandler implements Runnable {
 			Platform.runLater(new Runnable() {                          
                 @Override
                 public void run() {
-                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created\n");	
+                	server.control.serverText.appendText("Chatroom " + chatroom.ID + " has been created\n");
+                	server.control.serverText.appendText("Client " + ID + " has entered chatroom " + chatroom.ID + "\n");
                 }
             });
 			chatroom.sendMessage(username + " has connected to the chatroom");
@@ -267,6 +275,7 @@ public class ClientHandler implements Runnable {
 					throw new IOException();
 				}
 			} catch (IOException e) {
+				//disconnect
 				Platform.runLater(new Runnable() {                          
 	                @Override
 	                public void run() {
@@ -276,6 +285,13 @@ public class ClientHandler implements Runnable {
 				return;
 			}
 		}
+	}
+
+	@Override
+	public void update(Observable o, Object arg) {
+		out.println(arg);
+		out.flush();
+		
 	}
 
 }

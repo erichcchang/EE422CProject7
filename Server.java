@@ -52,12 +52,6 @@ public class Server {
 				fetchClientID.put(client.username, client.ID);
 				clientID++;				
 				(new Thread(client)).start();
-				//System.out.println("new client has connected in chat room " + roomID);
-				//ChatRoom serverRoom = new ChatRoom(client, roomID, this);
-				//rooms.add(serverRoom);
-				//this.addObserver(serverRoom);
-				//Thread thread = new Thread(serverRoom);
-				//thread.start();
 			} catch (IOException e) {
 				Platform.runLater(new Runnable() {                          
 	                @Override
