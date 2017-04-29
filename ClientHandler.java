@@ -72,12 +72,10 @@ public class ClientHandler extends Observable implements Runnable, Observer {
 			server.fetchClientID.remove(username);
 			server.fetchClientID.put(newUsername, ID);
 			username = newUsername;
-			synchronized (this) {
-				out.println("CHANGEUN" + username);
-				out.flush();
-				setChanged();
-				notifyObservers();
-			}
+			setChanged();
+			notifyObservers();
+			out.println("CHANGEUN" + username);
+			out.flush();
 			Platform.runLater(new Runnable() {                          
                 @Override
                 public void run() {
@@ -122,6 +120,7 @@ public class ClientHandler extends Observable implements Runnable, Observer {
 			}
 			else {
 				chatroom.addClient(this);
+				clientRooms.add(chatroom);
 				addObserver(chatroom);
 				chatroom.sendMessage(username + " has entered the chatroom");
 				Platform.runLater(new Runnable() {                          
@@ -146,6 +145,8 @@ public class ClientHandler extends Observable implements Runnable, Observer {
 				ClientHandler other = server.clients.get(connectID);
 				chatroom.addClient(other);
 				clientRooms.add(chatroom);
+				other.clientRooms.add(chatroom);
+				other.addObserver(chatroom);
 				addObserver(chatroom);
 				server.fetchChatroomID.put(chatroom.name, chatroom.ID);
 				server.chatrooms.add(chatroom);
@@ -298,8 +299,7 @@ public class ClientHandler extends Observable implements Runnable, Observer {
 	@Override
 	public void update(Observable o, Object arg) {
 		out.println(arg);
-		out.flush();
-		
+		out.flush();		
 	}
 
 }

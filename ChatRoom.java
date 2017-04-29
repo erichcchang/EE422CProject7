@@ -98,7 +98,7 @@ public class Chatroom extends Observable implements Observer {
 		clientHandler.out.flush();
 	}
 	
-	public void sendMessage(String message) { // observer/able candidate
+	public void sendMessage(String message) {
 		Platform.runLater(new Runnable() {                          
             @Override
             public void run() {
@@ -109,15 +109,9 @@ public class Chatroom extends Observable implements Observer {
 		roomNum += ID;
 		setChanged();
 		notifyObservers("CHATRM" + roomNum + message);
-		/*
-		for (ClientHandler client: clients) {
-			client.out.println("CHATRM" + roomNum + message);
-			client.out.flush();
-		}
-		*/
 	}
 	
-	public void refreshAll() { // observer/able candidate
+	public void refreshAll() {
 		for (ClientHandler client: clients) {
 			refresh(client);
 		}

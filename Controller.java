@@ -30,7 +30,7 @@ public class Controller {
 		mainPane = new AnchorPane();
 		tabs = new TabPane();
 		tabs.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
-		mainPane.getChildren().add(tabs);
+		mainPane.getChildren().add(tabs);		
 		AnchorPane.setTopAnchor(tabs, 0.0);
 		AnchorPane.setRightAnchor(tabs, 0.0);
 		AnchorPane.setBottomAnchor(tabs, 0.0);
