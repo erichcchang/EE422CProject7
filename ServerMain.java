@@ -1,3 +1,11 @@
+/* EE422C Project 7 submission by
+ * Ho-chang Chang
+ * hc23882
+ * 16220
+ * Slip days used: <0>
+ * Spring 2017
+ */
+
 package assignment7;
 
 import javafx.application.Application;
